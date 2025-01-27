@@ -1185,6 +1185,33 @@ async def list_channels(event):
         await event.respond("Joined channels:\n" + "\n".join(channels))
 
 
+@bot.on(events.NewMessage(pattern=r"/status"))
+async def check_status(event):
+    chat_id = event.chat_id
+
+    if not is_user_authenticated(chat_id):
+        await bot.send_message(chat_id, "You need to authenticate first. Use /login to get started.")
+        return
+
+    status_messages = []
+
+    # Check monitoring task
+    monitoring_status = "✅ Running" if chat_id in monitoring_tasks and not monitoring_tasks[chat_id].done() else "❌ Not Running"
+    status_messages.append(f"🔍 **Monitoring Task:** {monitoring_status}")
+
+    # Check repeating task
+    repeating_status = "✅ Running" if chat_id in running_tasks and not running_tasks[chat_id].done() else "❌ Not Running"
+    status_messages.append(f"♻️ **Repeating Task:** {repeating_status}")
+
+    # Check price check task (globally stored)
+    price_check_status = "✅ Running" if 'price_check_task' in globals() and not price_check_task.done() else "❌ Not Running"
+    status_messages.append(f"📉 **Price Check Task:** {price_check_status}")
+
+    response_text = "\n".join(status_messages)
+    await bot.send_message(chat_id, response_text)
+
+
+
 async def debug_tasks():
     while True:
         print("Currently running tasks:", asyncio.all_tasks())
@@ -1204,18 +1231,19 @@ def run_flask():
 
 # Define the main function to run both Flask and the bot together
 async def run_bot():
-    # You can now run your bot
+    global price_check_task  # Store globally so /status can check it
+
     print(asyncio.all_tasks())  # Shows all running asyncio tasks
     # Start the price checking loop
-    asyncio.create_task(check_price_changes())
+    price_check_task = asyncio.create_task(check_price_changes())  # Store globally
+
     await bot.run_until_disconnected()
 
 # Run Flask and Bot concurrently
 if __name__ == '__main__':
     # Start Flask server in a separate thread
-    flask_thread = threading.Thread(target=run_flask)
+    flask_thread = threading.Thread(target=run_flask, daemon=True)  # Ensure Flask doesn't block shutdown
     flask_thread.start()
 
-    # Create an asyncio event loop to run the bot
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_bot())
+    # Run the bot properly
+    asyncio.run(run_bot())  # ✅ Preferred way to run an async function
