@@ -139,7 +139,7 @@ bot_token = os.getenv('BOT_TOKEN')
 bot_client = create_bot_client(api_id, api_hash, bot_token)
 
 # External API endpoint to call (Flask server endpoint)
-API_URL = 'https://backend-auth-bcv6.onrender.com/send_message'  # Replace with your API endpoint
+API_URL = 'https://backend-q16p.onrender.com/send_message'  # Replace with your API endpoint
 
 # Event handler for /start command
 # Event handler for /start command
