@@ -1255,11 +1255,9 @@ def run_flask():
 
 # Define the main function to run both Flask and the bot together
 async def run_bot():
-    global price_check_task  # Store globally so /status can check it
 
     print(asyncio.all_tasks())  # Shows all running asyncio tasks
     # Start the price checking loop
-    price_check_task = asyncio.create_task(check_price_changes())  # Store globally
 
     await bot.run_until_disconnected()
 
