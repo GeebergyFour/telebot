@@ -779,8 +779,8 @@ async def monitor_channels(event):
                                             "chat_id": chat_id  # Store chat ID to use in check_price_changes()
                                         }
 
-                                        # Keep only the last 50 contracts
-                                        if len(tracked_contracts) > 50:
+                                        # Keep only the last 120 contracts
+                                        if len(tracked_contracts) > 120:
                                             tracked_contracts.pop(next(iter(tracked_contracts)))  # Remove oldest entry
                 except Exception as e:
                     await bot.send_message(chat_id, f"Error monitoring {channel_url}: {e}")
@@ -1120,8 +1120,8 @@ async def send_last_10_contracts(event):
                         "chat_id": channel_username  # Store chat ID to use in check_price_changes()
                     }
 
-                    # Keep only the last 50 contracts
-                    if len(tracked_contracts) > 50:
+                    # Keep only the last 120 contracts
+                    if len(tracked_contracts) > 120:
                         tracked_contracts.pop(next(iter(tracked_contracts)))  # Remove oldest entry
 
                 sent_contracts.add(contract)  # Mark contract as sent
