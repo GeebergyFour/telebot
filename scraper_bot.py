@@ -1066,7 +1066,10 @@ async def send_last_10_contracts(event):
                 formatted_liquidity = f"**{format_quantity(token_info.get('liquidity', 0))}**"
                 formatted_market_cap = f"**{format_quantity(token_info.get('market_cap', 0))}**"
 
-                detected_time = monitored_data[contract]["first_seen"]
+                detected_time = monitored_data[contract].get("first_seen")  # Fix: Avoid KeyError
+                if not detected_time:
+                    continue  # Skip contracts without 'first_seen'
+
                 seen_text = time_ago(detected_time)
 
                 response_text = (
@@ -1082,7 +1085,7 @@ async def send_last_10_contracts(event):
 
                 sent_message = await bot.send_message(channel_username, response_text)
                 channel_message_id = sent_message.id
-                
+
                 # Ensure tracked_contracts stores per-channel uniqueness
                 contract_key = (contract, channel_username)  # Unique identifier (contract + chat)
 
@@ -1097,7 +1100,7 @@ async def send_last_10_contracts(event):
                     # Keep only the last 300 contracts
                     if len(tracked_contracts) > 300:
                         tracked_contracts.pop(next(iter(tracked_contracts)))  # Remove oldest entry
-                        
+
                 sent_contracts.add(contract)  # Mark contract as sent
 
 
