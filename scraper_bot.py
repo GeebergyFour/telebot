@@ -934,55 +934,78 @@ async def copy_pnl(event):
     await bot.send_message(event.chat_id, f"🔹 Copied PNL:\n`{pnl_text}`")
 
 
+# Global variable to track the task
+price_check_task = None  
+
 async def check_price_changes():
-    """Periodically check if any contract's market cap has increased by at least 2x increments."""
+    """Periodically checks price changes and sends notifications."""
     while True:
-        await asyncio.sleep(60)  # Run every 60 seconds
+        try:
+            await asyncio.sleep(60)  # Run every 60 seconds
+            print("✅ Checking price changes...")
 
-        for (wallet_address, chat_id), data in tracked_contracts.items():  # Adjusted to unpack tuple keys
-            token_info = get_token_info(wallet_address)
+            for (wallet_address, chat_id), data in tracked_contracts.items():
+                token_info = get_token_info(wallet_address)
+                if "error" in token_info:
+                    continue  # Skip if token info couldn't be retrieved
+                
+                if wallet_address in token_info_cache:
+                    initial_market_cap = Decimal(token_info_cache[wallet_address]["market_cap"])
+                    current_market_cap = Decimal(token_info.get("market_cap", 0))
+                    previous_market_cap = data["market_cap"]
 
-            if "error" in token_info:
-                continue  # Skip if token info couldn't be retrieved
+                    if previous_market_cap is None:
+                        tracked_contracts[(wallet_address, chat_id)]["market_cap"] = current_market_cap
+                        tracked_contracts[(wallet_address, chat_id)]["original_market_cap"] = initial_market_cap
+                        tracked_contracts[(wallet_address, chat_id)]["last_triggered_cap"] = current_market_cap
+                        continue
 
-            if wallet_address in token_info_cache:
-                # Ensure the market cap is stored as a Decimal to avoid float precision issues
-                initial_market_cap = Decimal(token_info_cache[wallet_address]["market_cap"])
-                current_market_cap = Decimal(token_info.get("market_cap", 0))
-                previous_market_cap = data["market_cap"]
+                    original_market_cap = data.setdefault("original_market_cap", initial_market_cap)
+                    last_trigger_cap = data.get("last_triggered_cap", original_market_cap)
+                    next_trigger_cap = last_trigger_cap + (2 * original_market_cap)
 
-                if previous_market_cap is None:
-                    tracked_contracts[(wallet_address, chat_id)]["market_cap"] = current_market_cap
-                    tracked_contracts[(wallet_address, chat_id)]["original_market_cap"] = initial_market_cap  # Store original cap
-                    tracked_contracts[(wallet_address, chat_id)]["last_triggered_cap"] = current_market_cap  # Initialize milestone
-                    continue
+                    if current_market_cap >= next_trigger_cap:
+                        formatted_initial = format_quantity(original_market_cap)
+                        formatted_current = format_quantity(current_market_cap)
+                        pnl_percentage = ((current_market_cap / original_market_cap) - 1) * 100
+                        pnl_x = f"{current_market_cap / original_market_cap:.2f}x"
+                        pnl_emoji = "🟩" if pnl_percentage > 0 else "🟥"
+                        pnl_text = f"{pnl_emoji} {pnl_percentage:.2f}% | {pnl_x} | {formatted_initial} to {formatted_current}"
 
-                # Ensure original market cap is properly initialized
-                original_market_cap = data.setdefault("original_market_cap", initial_market_cap)
-                last_triggered_cap = data.get("last_triggered_cap", original_market_cap)
+                        await bot.send_message(chat_id, f"{pnl_text}", reply_to=data["message_id"])
 
-                # Calculate the next expected increment (multiples of 2x the original cap)
-                next_trigger_cap = last_triggered_cap + (2 * original_market_cap)
+                        tracked_contracts[(wallet_address, chat_id)]["market_cap"] = current_market_cap
+                        tracked_contracts[(wallet_address, chat_id)]["last_triggered_cap"] = next_trigger_cap
 
-                # Check if market cap has reached the next milestone
-                if current_market_cap >= next_trigger_cap:
-                    # Format the PNL message
-                    formatted_initial = format_quantity(original_market_cap)  # Use original market cap
-                    formatted_current = format_quantity(current_market_cap)
+        except Exception as e:
+            print(f"⚠️ Error in check_price_changes: {e}")
 
-                    pnl_percentage = ((current_market_cap / original_market_cap) - 1) * 100  # Fix: Use original cap
-                    pnl_x = f"{current_market_cap / original_market_cap:.2f}x"  # Fix: Use original cap
+# 🚀 /start_price_check Command
+@bot.on(events.NewMessage(pattern="/start_price_check"))
+async def start_price_check(event):
+    global price_check_task
+    if price_check_task and not price_check_task.done():
+        await event.respond("ℹ️ Price check is already running.")
+        return
+    
+    await event.respond("✅ Starting price check...")
+    price_check_task = asyncio.create_task(check_price_changes())
 
-                    pnl_emoji = "🟩" if pnl_percentage > 0 else "🟥"
+# 🛑 /stop_price_check Command
+@bot.on(events.NewMessage(pattern="/stop_price_check"))
+async def stop_price_check(event):
+    global price_check_task
+    if price_check_task and not price_check_task.done():
+        price_check_task.cancel()
+        try:
+            await price_check_task  # Ensure it stops completely
+        except asyncio.CancelledError:
+            await event.respond("✅ Price check task stopped successfully.")
+        price_check_task = None
+    else:
+        await event.respond("ℹ️ Price check is not running.")
 
-                    pnl_text = f"{pnl_emoji} {pnl_percentage:.2f}% | {pnl_x} | {formatted_initial} to {formatted_current}"
 
-                    # Send the message with the formatted PNL text
-                    await bot.send_message(chat_id, f"{pnl_text}", reply_to=data["message_id"])
-
-                    # Update stored market cap and last triggered milestone
-                    tracked_contracts[(wallet_address, chat_id)]["market_cap"] = current_market_cap
-                    tracked_contracts[(wallet_address, chat_id)]["last_triggered_cap"] = next_trigger_cap  # Move to next milestone
 
 
 
@@ -1204,8 +1227,9 @@ async def check_status(event):
     status_messages.append(f"♻️ **Repeating Task:** {repeating_status}")
 
     # Check price check task (globally stored)
-    price_check_status = "✅ Running" if 'price_check_task' in globals() and not price_check_task.done() else "❌ Not Running"
-    status_messages.append(f"📉 **Price Check Task:** {price_check_status}")
+    global price_check_task
+    status = "✅ Running" if price_check_task and not price_check_task.done() else "❌ Stopped"
+    status_messages.append(f"📊 **Price Check Status:** {status}")
 
     response_text = "\n".join(status_messages)
     await bot.send_message(chat_id, response_text)
