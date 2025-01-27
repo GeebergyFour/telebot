@@ -847,8 +847,8 @@ async def handle_user_message(event):
             await bot.send_message(chat_id, f"Error retrieving information for address {wallet_address}: {token_info['error']}")
             return
 
-        features = extract_features(token_info)
-        advice, probability = evaluate_contract(features)
+        # features = extract_features(token_info)
+        # advice, probability = evaluate_contract(features)
 
         # Extract and format data
         price = Decimal(token_info.get('price', 0))
@@ -1057,8 +1057,8 @@ async def send_last_10_contracts(event):
                 if "error" in token_info:
                     continue
 
-                features = extract_features(token_info)
-                advice, probability = evaluate_contract(features)
+                # features = extract_features(token_info)
+                # advice, probability = evaluate_contract(features)
 
                 price = Decimal(token_info.get('price', 0))
                 formatted_price = f"**${f'{price:.8f}' if price != price.to_integral_value() else f'{price:.2f}'}**"
