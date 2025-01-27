@@ -1239,12 +1239,13 @@ async def run_bot():
 
     await bot.run_until_disconnected()
 
+# Run Flask and Bot concurrently
 if __name__ == '__main__':
+    # Start Flask server in a separate thread
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(run_bot())  # Run inside the existing loop
-    except RuntimeError:
-        asyncio.run(run_bot())  # Only run a new loop if none exists
+    # Create an asyncio event loop to run the bot
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run_bot())
+
