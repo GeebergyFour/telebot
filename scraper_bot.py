@@ -870,7 +870,7 @@ async def handle_user_message(event):
             f"📊 **24h Volume:** {formatted_volume}\n"
             f"💎 **Liquidity:** {formatted_liquidity}\n"
             f"🏦 **Market Cap:** {formatted_market_cap}\n"
-            f"🤖 **AI Prediction:** {advice} ({probability * 100:.2f}%)\n"
+           # f"🤖 **AI Prediction:** {advice} ({probability * 100:.2f}%)\n"
         )
 
         pnl_text = None  # Store formatted PNL for the button
@@ -1080,7 +1080,7 @@ async def send_last_10_contracts(event):
                     f"📊 **24h Volume:** {formatted_volume}\n"
                     f"💎 **Liquidity:** {formatted_liquidity}\n"
                     f"🏦 **Market Cap:** {formatted_market_cap}\n"
-                    f"🤖 **AI Prediction:** {advice} ({probability * 100:.2f}%)\n"
+                   # f"🤖 **AI Prediction:** {advice} ({probability * 100:.2f}%)\n"
                 )
 
                 sent_message = await bot.send_message(channel_username, response_text)
